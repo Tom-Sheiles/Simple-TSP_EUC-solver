@@ -1,5 +1,5 @@
 import sys, math,time
-
+import GUI as GUI
 
 # open file in root directory with the same name and handle as provided in 'name'
 # returns list of all lines in the file split at the newline character
