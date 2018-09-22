@@ -1,4 +1,5 @@
 import sys, math,time
+import mysql.connector
 import GUI as GUI
 
 
@@ -91,6 +92,12 @@ def printTourToConsole(tour):
     print(name, "\n", "Shortest found tour length: ", totalDistance(tour), "\n", "Tour:")
     for x in range(0, len(tour)):
             print(int(tour[x][0]))
+
+
+user='s5132012'
+password='XwxXSo4j'
+database='s5132012db'
+host='mysql.ict.griffith.edu.au'
 
 
 name = sys.argv[1]
