@@ -1,4 +1,6 @@
-import sys, math, time, os, sqlite3
+import sys, math, time, os
+import GUI as GUI
+import mysql.connector
 
 
 def consoleFileHandle(name):
@@ -191,19 +193,25 @@ def printTourToConsole(tour, bestSolution):
             print(int(tour[x][0]))
 
 
-name = sys.argv[1]
-command = sys.argv[2]
+name = 'name'
+command = 'command'
 
-if not os.path.isfile("TSP_DB.db"):
-    print('"TSP_DB.db" not found, either place database in program root or specify new database name:')
-    databaseName = str(input())
+try: 
+    connection = mysql.connector.connect(host = 'mysql.ict.griffith.edu.au',
+                                         database = 's5132012db',
+                                         user = 's5132012',
+                                         password = 'XwxXSo4j')
+except:
+    print("Cannot Connect to Database")
+    input("Press enter to exit")
 
-else:
-    databaseName = 'TSP_DB.db'
-
-connection = sqlite3.connect(databaseName)
+if connection.is_connected():
+    print('Connected to the database')
+    
 cursor = connection.cursor()
 
+gui = GUI.initGui()
+#uptohere
 maxTime = dataBaseFileHandle(command)
 cursor.execute("SELECT OptimalSolution FROM Problem WHERE(Name = '" + name + "');")
 bestSolution = cursor.fetchone()[0]
@@ -233,4 +241,3 @@ while time.time() < (startTime + int(maxTime)):
 
 
 printTourToConsole(tour, bestSolution)
-

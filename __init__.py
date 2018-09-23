@@ -1,2 +1,2 @@
-from TSP import TSP
-from GUI import testClass
+import TSP as TSP
+import GUI as GUI
