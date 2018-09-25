@@ -1,7 +1,5 @@
 import sys, math, time, os
-import GUI as GUI
 import mysql.connector
-
 
 def consoleFileHandle(name):
     try:
@@ -9,7 +7,7 @@ def consoleFileHandle(name):
             line = tspfile.readlines()
     except FileNotFoundError:
         print("TSP File does not exist or cannot be opened")
-        sys.exit(1)
+        return 0
 
     return line
 
@@ -150,9 +148,9 @@ def greedySearch(cities):
                 continue
 
     n = str(totalDistance(returnTour))
-    sql_command = ("UPDATE Problem SET GreedySolution = " + n + " WHERE(Name = '" + name + "');")
-    cursor.execute(sql_command)
-    connection.commit()
+    #sql_command = ("UPDATE Problem SET GreedySolution = " + n + " WHERE(Name = '" + name + "');")
+    #cursor.execute(sql_command)
+    #connection.commit()
     return returnTour
 
 
@@ -192,52 +190,63 @@ def printTourToConsole(tour, bestSolution):
     for x in range(0, len(tour)):
             print(int(tour[x][0]))
 
+def generateCities(tspLines):
+    cities = [0] * len(tspLines)
+    j = 1
+    for i in range(6, len(tspLines) - 1):
+        try:
+            cities[j] = [int(s) for s in tspLines[i].split()]
+        except ValueError:
+            cities[j] = [float(s) for s in tspLines[i].split()]
+        j += 1
+    return cities
 
-name = 'name'
-command = 'command'
 
-try: 
-    connection = mysql.connector.connect(host = 'mysql.ict.griffith.edu.au',
-                                         database = 's5132012db',
-                                         user = 's5132012',
-                                         password = 'XwxXSo4j')
-except:
-    print("Cannot Connect to Database")
-    input("Press enter to exit")
-
-if connection.is_connected():
-    print('Connected to the database')
+def old():
+    name = 'name'
+    command = 'command'
     
-cursor = connection.cursor()
-
-gui = GUI.initGui()
-#uptohere
-maxTime = dataBaseFileHandle(command)
-cursor.execute("SELECT OptimalSolution FROM Problem WHERE(Name = '" + name + "');")
-bestSolution = cursor.fetchone()[0]
-
-
-tspLines = databaseSolutionHandle(name)
-startTime = time.time()
-cities = [0] * len(tspLines)
-tour = list()
-step = 0
-
-
-j = 1
-for i in range(6, len(tspLines) - 1):
-    try:
-        cities[j] = [int(s) for s in tspLines[i].split()]
-    except ValueError:
-        cities[j] = [float(s) for s in tspLines[i].split()]
-    j += 1
-
-tour = greedySearch(cities)
-
-
-while time.time() < (startTime + int(maxTime)):
-    step += 1
-    tour = greedyTwoOptSolver(tour)
-
-
-printTourToConsole(tour, bestSolution)
+    try: 
+        connection = mysql.connector.connect(host = 'mysql.ict.griffith.edu.au',
+                                             database = 's5132012db',
+                                             user = 's5132012',
+                                             password = 'XwxXSo4j')
+    except:
+        print("Cannot Connect to Database")
+        input("Press enter to exit")
+    
+    if connection.is_connected():
+        print('Connected to the database')
+        
+    cursor = connection.cursor()
+    
+    #uptohere
+    maxTime = dataBaseFileHandle(command)
+    cursor.execute("SELECT OptimalSolution FROM Problem WHERE(Name = '" + name + "');")
+    bestSolution = cursor.fetchone()[0]
+    
+    
+    tspLines = databaseSolutionHandle(name)
+    startTime = time.time()
+    cities = [0] * len(tspLines)
+    tour = list()
+    step = 0
+    
+    
+    j = 1
+    for i in range(6, len(tspLines) - 1):
+        try:
+            cities[j] = [int(s) for s in tspLines[i].split()]
+        except ValueError:
+            cities[j] = [float(s) for s in tspLines[i].split()]
+        j += 1
+    
+    tour = greedySearch(cities)
+    
+    
+    while time.time() < (startTime + int(maxTime)):
+        step += 1
+        tour = greedyTwoOptSolver(tour)
+    
+    
+    printTourToConsole(tour, bestSolution)

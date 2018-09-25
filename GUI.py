@@ -1,4 +1,10 @@
 import matplotlib
+import TSP as tsp
+import datetime
+import time
+import mysql.connector
+import sys
+import random
 
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -11,7 +17,10 @@ style.use('fivethirtyeight')
 import wx
 
 class TSPGUIClass(wx.Frame): 
-    
+    xs = []
+    ys = []
+    fileName = ""
+    tourDistance = float()
     
     def __init__(self,parent,title):
         super(TSPGUIClass, self).__init__(parent, title=title, size=(1024,576))
@@ -29,43 +38,48 @@ class TSPGUIClass(wx.Frame):
         self.Bind(wx.EVT_MENU, self.Quit, exit)
         
         # Elements
-        nameText = wx.StaticText(panel, label="Name:")
-        sizeText = wx.StaticText(panel, -1, label='Size:')
-        commentText = wx.StaticText(panel, 1, label='Comment:')
-        lengthText = wx.StaticText(panel, label='Length:')
-        dateText = wx.StaticText(panel, label='Date:')
-        authorText = wx.StaticText(panel, label='Author:')
-        timeText = wx.StaticText(panel, label="Time:")
+        self.nameText = wx.StaticText(panel, label="Name:")
+        self.sizeText = wx.StaticText(panel, -1, label='Size:')
+        self.commentText = wx.StaticText(panel, 1, label='Comment:')
+        self.typeText = wx.StaticText(panel, label='Type:')
+        self.lengthText = wx.StaticText(panel, label='Length:')
+        self.dateText = wx.StaticText(panel, label='Date:')
+        self.authorText = wx.StaticText(panel, label='Author:')
+        self.timeText = wx.StaticText(panel, label="Time:")
 
-        plotParent = wx.Panel(panel, pos = (180,10), size=(580,1000))
-        separateBox = wx.StaticBox(panel, size=(126,225), pos=(10,2), label="TSP Problem Details") 
-        randomInput = wx.TextCtrl(plotParent, pos=(0,400))
-        randomInputText = wx.StaticText(plotParent, label='Number of Random\ncities', pos=(5,430))
-        randomButton = wx.Button(plotParent, label="Generate Random TSP", pos=(120,398))
+        self.plotParent = wx.Panel(panel, pos = (180,10), size=(580,1000))
+        separateBox = wx.StaticBox(panel, size=(126,245), pos=(10,2), label="TSP Problem Details") 
+        self.randomInput = wx.TextCtrl(self.plotParent, pos=(0,400))
+        randomInputText = wx.StaticText(self.plotParent, label='Number of Random\ncities', pos=(5,430))
+        randomButton = wx.Button(self.plotParent, label="Generate Random TSP", pos=(120,398))
         
         inputButtonBox = wx.StaticBox(panel, id=-1, size=(200,300), pos=(780,2), label="File Options")
         loadButton = wx.Button(inputButtonBox,id=1, label=("Load File"), pos=(5,30), style=wx.STAY_ON_TOP)
         saveButton = wx.Button(inputButtonBox,id=1, label=("Save Loaded File"), pos=(5,65))
         LoadPrevious = wx.Button(inputButtonBox,id=1, label=("Load From Databse"), pos=(5,100))
         SolveLoaded = wx.Button(inputButtonBox,id=1, label=("Solve Problem!"), pos=(5,170))
-        solveTimeBox = wx.TextCtrl(inputButtonBox, value="Enter Solve Time", pos=(5,205))
+        self.solveTimeBox = wx.TextCtrl(inputButtonBox, value="Enter Solve Time", pos=(5,205))
         greedyCheck = wx.CheckBox(inputButtonBox, label="Greedy\nSolver", pos=(120,170))
 
-        # self.matPlotInit(plotParent, [],[])
-        self.matPlotInit(plotParent, [24,16,104,104,104,104,124],[25,25,33,48,65,81,101])
+        self.matPlotInit(self.plotParent, [],[])
+        #self.matPlotInit(plotParent, [24,16,104,104,104,104,124],[25,25,33,48,65,81,101])
 
         # Sizer Init
         bs = wx.GridBagSizer(10,300)
-        bs.Add(nameText, pos=(1,0), flag=wx.LEFT | wx.TOP, border=14)
-        bs.Add(sizeText, pos=(2,0), flag=wx.LEFT, border=14)
-        bs.Add(commentText, pos=(3,0), flag=wx.LEFT, border=14)
-        bs.Add(lengthText, pos=(4,0), flag=wx.LEFT, border=14)
-        bs.Add(dateText, pos=(5,0), flag=wx.LEFT, border=14)
-        bs.Add(authorText, pos=(6,0), flag=wx.LEFT, border=14)
-        bs.Add(timeText, pos=(7,0), flag=wx.LEFT, border=14)
+        bs.Add(self.nameText, pos=(1,0), flag=wx.LEFT | wx.TOP, border=14)
+        bs.Add(self.sizeText, pos=(2,0), flag=wx.LEFT, border=14)
+        bs.Add(self.commentText, pos=(3,0), flag=wx.LEFT, border=14)
+        bs.Add(self.typeText, pos=(4,0), flag=wx.LEFT, border=14)
+        bs.Add(self.lengthText, pos=(5,0), flag=wx.LEFT, border=14)
+        bs.Add(self.dateText, pos=(6,0), flag=wx.LEFT, border=14)
+        bs.Add(self.authorText, pos=(7,0), flag=wx.LEFT, border=14)
+        bs.Add(self.timeText, pos=(8,0), flag=wx.LEFT, border=14)
 
         panel.SetSizerAndFit(bs)
-        #panel.SetSizer(bs)
+
+        loadButton.Bind(wx.EVT_BUTTON, self.LoadFile, loadButton)
+        SolveLoaded.Bind(wx.EVT_BUTTON, self.Solve, SolveLoaded)
+        randomButton.Bind(wx.EVT_BUTTON, self.RandomTour, randomButton)
         
         # Window Attributes
         self.Show(True)
@@ -79,7 +93,7 @@ class TSPGUIClass(wx.Frame):
         if x:
             x.append(x[0])
             y.append(y[0])
-            a.scatter(x, y, color="r")       
+            a.scatter(x, y, color="r", s=21)       
             a.plot(x, y, "--", linewidth=1)
         else:
             a.plot()
@@ -94,12 +108,89 @@ class TSPGUIClass(wx.Frame):
             self.Close()
         else:
             return
+
+    def LoadFile(self, e):
+        dialoge = wx.TextEntryDialog(None, '"File Name".tsp', 'Load File')
+        if dialoge.ShowModal() == wx.ID_OK:
+            self.fileName = dialoge.GetValue()
+            fileRead = tsp.consoleFileHandle(self.fileName)
+            
+            problemName = fileRead[0][6:-1]
+            comment = fileRead[1][9:-1]
+            problemType = fileRead[4][18:-1]
+            dimension = fileRead[3][10:-1]
+            self.nameText.SetLabel("Name: " + problemName)
+            self.commentText.SetLabel("Comment: " + comment)
+            self.typeText.SetLabel("Type: " + problemType)
+            self.sizeText.SetLabel("Size: " + dimension + " Nodes")
+            self.timeText.SetLabel("Time: " + datetime.datetime.now().strftime("%H:%M:%S"))
+            self.dateText.SetLabel("Date: " + datetime.datetime.now().strftime("%Y-%m-%d"))
+            
+            TSPtour = tsp.generateCities(fileRead)
+            TSPtour = tsp.greedySearch(TSPtour)
+            self.coordGenerate(TSPtour)
+            self.matPlotInit(self.plotParent, self.xs, self.ys)
+            
+        dialoge.Destroy()
+    
+    def Solve(self, e):
+        self.matPlotInit(self.plotParent, [],[])
+        startTime = time.time()
+        fileRead = tsp.consoleFileHandle(self.fileName)
+        TSPtour = tsp.generateCities(fileRead)
+        TSPtour = tsp.greedySearch(TSPtour)
+        solveTime = int(self.solveTimeBox.GetValue())
         
+        while time.time() < (startTime + int(solveTime)):
+            TSPtour = tsp.greedyTwoOptSolver(TSPtour)
+            
+        self.coordGenerate(TSPtour)
+        self.matPlotInit(self.plotParent, self.xs, self.ys)
+        self.tourDistance = tsp.totalDistance(TSPtour)
+        self.lengthText.SetLabel("Length: " + str(self.tourDistance))
+        
+        
+    def RandomTour(self, e):
+        nTowns = int(self.randomInput.GetValue())
+        x = []
+        y = []
+        for i in range(0, nTowns):
+            x.append(random.sample(range(-1000,1000), 1))
+            y.append(rand)
+        x = random.sample(range(-1000,1000), nTowns)
+        y = random.sample(range(-1000,1000), nTowns)
+        
+        self.matPlotInit(self.plotParent, x,y)
+        
+    def coordGenerate(self, totalList):
+        self.xs.clear()
+        self.ys.clear()
+        for i in range(0, len(totalList)):
+            self.xs.append(totalList[i][1])
+            self.ys.append(totalList[i][2])
+            
 
-          
+app = wx.App()
 
-def initGui():
-    import TSP as tsp
-    app = wx.App()
-    TSPGUIClass(None, title='TSP Solver')
-    app.MainLoop()    
+try: 
+    connection = mysql.connector.connect(host = 'mysql.ict.griffith.edu.au',
+                                             database = 's5132012db',
+                                             user = 's5132012',
+                                             password = 'XwxXSo4j')
+except:
+    print("Cannot Connect to Database")
+    
+if connection.is_connected():
+    print('Connected to the database')       
+    cursor = connection.cursor()
+
+fileRead = None
+TSPtour = None
+
+problemName = ""
+comment = ""
+problemType = ""
+dimension = ""
+
+TSPGUIClass(None, title='TSP Solver')
+app.MainLoop()    
