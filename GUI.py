@@ -5,6 +5,7 @@ import time
 import mysql.connector
 import sys
 import random
+import numpy as np
 
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -20,6 +21,7 @@ class TSPGUIClass(wx.Frame):
     xs = []
     ys = []
     fileName = ""
+    initialNodes = []
     tourDistance = float()
     tourString = ""
     
@@ -141,6 +143,7 @@ class TSPGUIClass(wx.Frame):
             self.dateText.SetLabel("Date: " + datetime.datetime.now().strftime("%Y-%m-%d"))
             
             TSPtour = tsp.generateCities(fileRead)
+            self.initialNodes = np.trim_zeros(TSPtour)
             TSPtour = tsp.greedySearch(TSPtour)
             self.coordGenerate(TSPtour)
             self.matPlotInit(self.plotParent, self.xs, self.ys)
@@ -157,7 +160,7 @@ class TSPGUIClass(wx.Frame):
         
         while time.time() < (startTime + int(solveTime)):
             TSPtour = tsp.greedyTwoOptSolver(TSPtour)
-            
+        
         self.coordGenerate(TSPtour)
         self.matPlotInit(self.plotParent, self.xs, self.ys)
         self.tourDistance = tsp.totalDistance(TSPtour)
@@ -190,7 +193,6 @@ class TSPGUIClass(wx.Frame):
         runTime = self.solveTimeBox.GetValue()
         tour = self.tourString
         
-        print(author)
         try:
             Length = self.lengthText.Label.split()[1].strip()
         except:
@@ -206,6 +208,7 @@ class TSPGUIClass(wx.Frame):
             self.connection.commit()
             dialog = wx.MessageDialog(None, "Problem Saved to the database", "Saved")
             dialog.ShowModal()
+            self.saveCities(name)
 
         if Length != "":
             sqlCommand = "INSERT INTO Solution(ProblemName,TourLength,Date,Author,RunningTime,Tour,Algorithm)" + "VALUES('" + name + "','" + Length + "','" + date + "','" + author + "','" + runTime + "','" + tour +"','2Opt');"
@@ -213,8 +216,16 @@ class TSPGUIClass(wx.Frame):
             self.connection.commit()
             dialog = wx.MessageDialog(None, "New Solution Saved to Database", "Saved")
             dialog.ShowModal()
+            
+    def saveCities(self, name):
+        tour = self.initialNodes
+         
+        for i in range(0, len(tour)):
+            sqlCommand = "INSERT INTO Cities(Name,ID,x,y) VALUES('" + name + "','" + str(tour[i][0]) + "','" + str(tour[i][1]) + "','" + str(tour[i][2]) + "');"
+            self.cursor.execute(sqlCommand)
+            self.connection.commit()
+        
 
-              
 app = wx.App()
 
 fileRead = None
