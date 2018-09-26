@@ -21,9 +21,22 @@ class TSPGUIClass(wx.Frame):
     ys = []
     fileName = ""
     tourDistance = float()
+    tourString = ""
     
     def __init__(self,parent,title):
         super(TSPGUIClass, self).__init__(parent, title=title, size=(1024,576))
+        try: 
+            self.connection = mysql.connector.connect(host = 'mysql.ict.griffith.edu.au',
+                                             database = 's5132012db',
+                                             user = 's5132012',
+                                             password = 'XwxXSo4j')
+        except:
+            print("Cannot Connect to Database")
+    
+        if self.connection.is_connected():
+            print('Connected to the database')       
+            self.cursor = self.connection.cursor()
+            
         self.initElements()
         
     def initElements(self):        
@@ -80,6 +93,7 @@ class TSPGUIClass(wx.Frame):
         loadButton.Bind(wx.EVT_BUTTON, self.LoadFile, loadButton)
         SolveLoaded.Bind(wx.EVT_BUTTON, self.Solve, SolveLoaded)
         randomButton.Bind(wx.EVT_BUTTON, self.RandomTour, randomButton)
+        saveButton.Bind(wx.EVT_BUTTON, self.SaveDB, saveButton)
         
         # Window Attributes
         self.Show(True)
@@ -148,17 +162,13 @@ class TSPGUIClass(wx.Frame):
         self.matPlotInit(self.plotParent, self.xs, self.ys)
         self.tourDistance = tsp.totalDistance(TSPtour)
         self.lengthText.SetLabel("Length: " + str(self.tourDistance))
+        self.tourString = tsp.TourToString(TSPtour)
         
         
     def RandomTour(self, e):
         nTowns = int(self.randomInput.GetValue())
-        x = []
-        y = []
-        for i in range(0, nTowns):
-            x.append(random.sample(range(-1000,1000), 1))
-            y.append(rand)
-        x = random.sample(range(-1000,1000), nTowns)
-        y = random.sample(range(-1000,1000), nTowns)
+        x = random.sample(range(0,1000), nTowns)
+        y = random.sample(range(0,1000), nTowns)
         
         self.matPlotInit(self.plotParent, x,y)
         
@@ -169,20 +179,43 @@ class TSPGUIClass(wx.Frame):
             self.xs.append(totalList[i][1])
             self.ys.append(totalList[i][2])
             
+    def SaveDB(self, e):
+        name = self.nameText.Label.split()[1].strip()
+        size = self.sizeText.Label.split()[1].strip()
+        comment = self.commentText.Label.split(":")[1].strip()
+        date = self.dateText.Label.split()[1].strip()
+        author = wx.TextEntryDialog(None, "Enter Author Name", "Author Text")
+        if author.ShowModal() == wx.ID_OK:
+            author = author.GetValue()
+        runTime = self.solveTimeBox.GetValue()
+        tour = self.tourString
+        
+        print(author)
+        try:
+            Length = self.lengthText.Label.split()[1].strip()
+        except:
+            Length = ""
+        
+        sqlCommand = "SELECT Name FROM Problem WHERE(Name = '" + name + "');"
+        self.cursor.execute(sqlCommand)
+        problem = self.cursor.fetchall()
+        
+        if problem == []:
+            sqlCommand = "INSERT INTO Problem(Name,Size,Comment) VALUES('" + name + "','" + size + "','" + comment + "');"
+            self.cursor.execute(sqlCommand)
+            self.connection.commit()
+            dialog = wx.MessageDialog(None, "Problem Saved to the database", "Saved")
+            dialog.ShowModal()
 
+        if Length != "":
+            sqlCommand = "INSERT INTO Solution(ProblemName,TourLength,Date,Author,RunningTime,Tour,Algorithm)" + "VALUES('" + name + "','" + Length + "','" + date + "','" + author + "','" + runTime + "','" + tour +"','2Opt');"
+            self.cursor.execute(sqlCommand)
+            self.connection.commit()
+            dialog = wx.MessageDialog(None, "New Solution Saved to Database", "Saved")
+            dialog.ShowModal()
+
+              
 app = wx.App()
-
-try: 
-    connection = mysql.connector.connect(host = 'mysql.ict.griffith.edu.au',
-                                             database = 's5132012db',
-                                             user = 's5132012',
-                                             password = 'XwxXSo4j')
-except:
-    print("Cannot Connect to Database")
-    
-if connection.is_connected():
-    print('Connected to the database')       
-    cursor = connection.cursor()
 
 fileRead = None
 TSPtour = None

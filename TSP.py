@@ -189,6 +189,15 @@ def printTourToConsole(tour, bestSolution):
     print(name, "\n", "Final tour length: ", finalDistance, "\n", "Tour:")
     for x in range(0, len(tour)):
             print(int(tour[x][0]))
+            
+def TourToString(tour):
+    tourString = ""
+    for x in range(0, len(tour)):
+        tourString += str(tour[x][0])
+        tourString += " "
+        
+    tourString += "-1"    
+    return tourString
 
 def generateCities(tspLines):
     cities = [0] * len(tspLines)
