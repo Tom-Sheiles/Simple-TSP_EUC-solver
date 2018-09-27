@@ -37,7 +37,7 @@ class TSPGUIClass(wx.Frame):
     
         if self.connection.is_connected():
             print('Connected to the database')       
-            self.cursor = self.connection.cursor()
+            self.cursor = self.connection.cursor(buffered=True)
             
         self.initElements()
         
@@ -96,6 +96,7 @@ class TSPGUIClass(wx.Frame):
         SolveLoaded.Bind(wx.EVT_BUTTON, self.Solve, SolveLoaded)
         randomButton.Bind(wx.EVT_BUTTON, self.RandomTour, randomButton)
         saveButton.Bind(wx.EVT_BUTTON, self.SaveDB, saveButton)
+        LoadPrevious.Bind(wx.EVT_BUTTON, self.LoadDatabase, LoadPrevious)
         
         # Window Attributes
         self.Show(True)
@@ -153,9 +154,15 @@ class TSPGUIClass(wx.Frame):
     def Solve(self, e):
         self.matPlotInit(self.plotParent, [],[])
         startTime = time.time()
-        fileRead = tsp.consoleFileHandle(self.fileName)
-        TSPtour = tsp.generateCities(fileRead)
-        TSPtour = tsp.greedySearch(TSPtour)
+        try:
+            fileRead = tsp.consoleFileHandle(self.fileName)
+            TSPtour = tsp.generateCities(fileRead)
+            print(TSPtour)
+            TSPtour = tsp.greedySearch(TSPtour)
+            print(TSPtour)
+        except:
+            TSPtour = self.initialNodes 
+            
         solveTime = int(self.solveTimeBox.GetValue())
         
         while time.time() < (startTime + int(solveTime)):
@@ -182,11 +189,57 @@ class TSPGUIClass(wx.Frame):
             self.xs.append(totalList[i][1])
             self.ys.append(totalList[i][2])
             
+    def LoadDatabase(self, e):
+        sqlCommand = "SELECT Name FROM Problem;"
+        self.cursor.execute(sqlCommand)
+        dbProblems = self.cursor.fetchall()
+        
+        self.LoadDialog = wx.Dialog(None, title="Problems", size =(200,120))
+        button = wx.Button(self.LoadDialog, pos=(4, 40), label="Ok")
+        self.listBox = wx.ComboBox(self.LoadDialog)
+        
+        button.Bind(wx.EVT_BUTTON, self.okButton, button)
+        
+        for i in range(0, len(dbProblems)):
+            self.listBox.Append(dbProblems[i])
+        
+        self.LoadDialog.ShowModal()
+        self.LoadDialog.Center()
+        
+    def okButton(self, e):
+        name = self.listBox.GetString(self.listBox.GetSelection())
+        self.fileName = name
+        
+        self.nameText.SetLabel("Name: " + name)
+        self.cursor.execute("SELECT Size FROM Problem WHERE(Name='" + name + "');")
+        size = self.cursor.fetchone()[0]
+        self.sizeText.SetLabel("Size: " + str(size))
+        
+        self.cursor.execute("SELECT Comment FROM Problem WHERE(Name='" + name + "');")
+        self.commentText.SetLabel("Comment: " + str(self.cursor.fetchone()[0]))
+        
+        self.cursor.execute("SELECT TourLength FROM Solution WHERE(ProblemName='" + name + "');")
+        self.lengthText.SetLabel("Length: " + str(self.cursor.fetchone()[0]))
+        
+        self.cursor.execute("SELECT Author FROM Solution WHERE(ProblemName='" + name + "');")
+        self.authorText.SetLabel("Author: " + str(self.cursor.fetchone()[0]))
+         
+        self.cursor.execute("SELECT ID, x, y FROM Cities WHERE(Name='" + name + "');") 
+        self.initialNodes = self.cursor.fetchall()
+        
+        self.coordGenerate(self.initialNodes)
+        self.matPlotInit(self.plotParent, self.xs, self.ys)
+        
+                                                                   
+        
     def SaveDB(self, e):
         name = self.nameText.Label.split()[1].strip()
         size = self.sizeText.Label.split()[1].strip()
         comment = self.commentText.Label.split(":")[1].strip()
-        date = self.dateText.Label.split()[1].strip()
+        try:
+            date = self.dateText.Label.split()[1].strip()
+        except:
+            date = ""
         author = wx.TextEntryDialog(None, "Enter Author Name", "Author Text")
         if author.ShowModal() == wx.ID_OK:
             author = author.GetValue()
@@ -224,6 +277,7 @@ class TSPGUIClass(wx.Frame):
             sqlCommand = "INSERT INTO Cities(Name,ID,x,y) VALUES('" + name + "','" + str(tour[i][0]) + "','" + str(tour[i][1]) + "','" + str(tour[i][2]) + "');"
             self.cursor.execute(sqlCommand)
             self.connection.commit()
+             
         
 
 app = wx.App()
