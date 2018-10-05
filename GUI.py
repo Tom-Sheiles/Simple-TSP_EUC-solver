@@ -29,7 +29,7 @@ class TSPGUIClass(wx.Frame):
         super(TSPGUIClass, self).__init__(parent, title=title, size=(1024,576))
         try: 
             self.connection = mysql.connector.connect(host = 'mysql.ict.griffith.edu.au',
-                                             database = 's5132012db',
+                                             database = '1810ICTdb',
                                              user = 's5132012',
                                              password = 'XwxXSo4j')
         except:
@@ -117,6 +117,9 @@ class TSPGUIClass(wx.Frame):
         canvas = FigureCanvas(plotParent, -1, f)
         a.grid(ls='--')
         canvas.draw()
+        
+    def onClose(self, e):
+        self.Close()
         
     def Quit(self, e):
         dialoge = wx.MessageDialog(None, 'Are your sure you want to quit', 
@@ -219,11 +222,20 @@ class TSPGUIClass(wx.Frame):
         self.commentText.SetLabel("Comment: " + str(self.cursor.fetchone()[0]))
         
         self.cursor.execute("SELECT TourLength FROM Solution WHERE(ProblemName='" + name + "');")
-        self.lengthText.SetLabel("Length: " + str(self.cursor.fetchone()[0]))
+        
+        try:
+            self.lengthText.SetLabel("Length: " + str(self.cursor.fetchone()[0]))
+        except:
+            print('Exception: No Problem Length found')    
+    
         
         self.cursor.execute("SELECT Author FROM Solution WHERE(ProblemName='" + name + "');")
-        self.authorText.SetLabel("Author: " + str(self.cursor.fetchone()[0]))
-         
+        
+        try:
+            self.authorText.SetLabel("Author: " + str(self.cursor.fetchone()[0]))
+        except:
+            print('Exception: Author not found')
+        
         self.cursor.execute("SELECT ID, x, y FROM Cities WHERE(Name='" + name + "');") 
         self.initialNodes = self.cursor.fetchall()
         
