@@ -1,16 +1,12 @@
-import matplotlib
 import TSP as tsp
 import datetime
 import time
 import mysql.connector
-import sys
 import random
 import numpy as np
 
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from matplotlib import style
 
 style.use('fivethirtyeight')
@@ -34,6 +30,7 @@ class TSPGUIClass(wx.Frame):
                                              password = 'XwxXSo4j')
         except:
             print("Cannot Connect to Database")
+            self.close()
     
         if self.connection.is_connected():
             print('Connected to the database')       
@@ -77,7 +74,6 @@ class TSPGUIClass(wx.Frame):
         greedyCheck = wx.CheckBox(inputButtonBox, label="Greedy\nSolver", pos=(120,170))
 
         self.matPlotInit(self.plotParent, [],[])
-        #self.matPlotInit(plotParent, [24,16,104,104,104,104,124],[25,25,33,48,65,81,101])
 
         # Sizer Init
         bs = wx.GridBagSizer(10,300)
@@ -119,13 +115,13 @@ class TSPGUIClass(wx.Frame):
         canvas.draw()
         
     def onClose(self, e):
-        self.Close()
+        self.Destroy()
         
     def Quit(self, e):
         dialoge = wx.MessageDialog(None, 'Are your sure you want to quit', 
                                    'Quit',wx.YES_NO)
         if dialoge.ShowModal() == wx.ID_YES:
-            self.Close()
+            self.Destroy()
         else:
             return
 
@@ -160,22 +156,33 @@ class TSPGUIClass(wx.Frame):
         try:
             fileRead = tsp.consoleFileHandle(self.fileName)
             TSPtour = tsp.generateCities(fileRead)
-            print(TSPtour)
             TSPtour = tsp.greedySearch(TSPtour)
-            print(TSPtour)
         except:
             TSPtour = self.initialNodes 
             
         solveTime = int(self.solveTimeBox.GetValue())
-        
+  
         while time.time() < (startTime + int(solveTime)):
             TSPtour = tsp.greedyTwoOptSolver(TSPtour)
-        
+  
+        ''' threading to handle unresponsive window  
+        t = threading.Thread(target = self.solverThread, args=(TSPtour, startTime, solveTime))
+        self.threads.append(t)
+        t.start()
+        t.join()
+        '''
+      
         self.coordGenerate(TSPtour)
         self.matPlotInit(self.plotParent, self.xs, self.ys)
         self.tourDistance = tsp.totalDistance(TSPtour)
         self.lengthText.SetLabel("Length: " + str(self.tourDistance))
         self.tourString = tsp.TourToString(TSPtour)
+    
+    ''' 
+    def solverThread(self, TSPtour, startTime, solveTime):
+        while time.time() < (startTime + int(solveTime)):
+            tsp.greedyTwoOptSolver(TSPtour) 
+    '''
         
         
     def RandomTour(self, e):
@@ -208,6 +215,7 @@ class TSPGUIClass(wx.Frame):
         
         self.LoadDialog.ShowModal()
         self.LoadDialog.Center()
+        self.LoadDialog.Destroy()
         
     def okButton(self, e):
         name = self.listBox.GetString(self.listBox.GetSelection())
@@ -244,14 +252,23 @@ class TSPGUIClass(wx.Frame):
         
                                                                    
         
-    def SaveDB(self, e):
-        name = self.nameText.Label.split()[1].strip()
-        size = self.sizeText.Label.split()[1].strip()
-        comment = self.commentText.Label.split(":")[1].strip()
+    def SaveDB(self, e):       
+        name = None
+        problem = None
+        
+        try:
+            name = self.nameText.Label.split()[1].strip()
+            size = self.sizeText.Label.split()[1].strip()
+            comment = self.commentText.Label.split(":")[1].strip()
+        except:
+            print("Exception: Could not Save problem due to issues with naming")
+        
         try:
             date = self.dateText.Label.split()[1].strip()
         except:
+            print("Could not save date")
             date = ""
+               
         author = wx.TextEntryDialog(None, "Enter Author Name", "Author Text")
         if author.ShowModal() == wx.ID_OK:
             author = author.GetValue()
@@ -263,9 +280,10 @@ class TSPGUIClass(wx.Frame):
         except:
             Length = ""
         
-        sqlCommand = "SELECT Name FROM Problem WHERE(Name = '" + name + "');"
-        self.cursor.execute(sqlCommand)
-        problem = self.cursor.fetchall()
+        if name is not None:
+            sqlCommand = "SELECT Name FROM Problem WHERE(Name = '" + name + "');"
+            self.cursor.execute(sqlCommand)
+            problem = self.cursor.fetchall()
         
         if problem == []:
             sqlCommand = "INSERT INTO Problem(Name,Size,Comment) VALUES('" + name + "','" + size + "','" + comment + "');"
